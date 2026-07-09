@@ -1,0 +1,23 @@
+{{- if or .Values.metrics.enabled .Values.webhook.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lumi.fullname" . }}
+  labels:
+    {{- include "lumi.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "lumi.selectorLabels" . | nindent 4 }}
+  ports:
+    {{- if .Values.metrics.enabled }}
+    - name: metrics
+      port: {{ .Values.metrics.port }}
+      targetPort: metrics
+    {{- end }}
+    {{- if .Values.webhook.enabled }}
+    - name: webhook
+      port: {{ .Values.webhook.port }}
+      targetPort: webhook
+    {{- end }}
+{{- end }}

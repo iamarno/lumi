@@ -1,0 +1,123 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lumi.fullname" . }}
+  labels:
+    {{- include "lumi.labels" . | nindent 4 }}
+spec:
+  # One Matrix session, RWO state volume — never run two pods.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "lumi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "lumi.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "lumi.fullname" . }}
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      {{- if .Values.modules.enabled }}
+      initContainers:
+        - name: modules
+          image: {{ include "lumi.modulesImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["sh", "-c", "cp -a /modules/. /shared/"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: modules
+              mountPath: /shared
+      {{- end }}
+      containers:
+        - name: lumi
+          image: {{ include "lumi.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: LUMI_STATE_DIR
+              value: /data
+            {{- if .Values.modules.enabled }}
+            - name: LUMI_MODULES_DIR
+              value: /app/modules
+            {{- end }}
+            {{- if .Values.metrics.enabled }}
+            - name: METRICS_PORT
+              value: {{ .Values.metrics.port | quote }}
+            {{- end }}
+            {{- if .Values.webhook.enabled }}
+            - name: GRAFANA_ALERTS_PORT
+              value: {{ .Values.webhook.port | quote }}
+            {{- end }}
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ include "lumi.secretName" . }}
+          {{- if or .Values.metrics.enabled .Values.webhook.enabled }}
+          ports:
+            {{- if .Values.metrics.enabled }}
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
+            {{- end }}
+            {{- if .Values.webhook.enabled }}
+            - name: webhook
+              containerPort: {{ .Values.webhook.port }}
+            {{- end }}
+          {{- end }}
+          volumeMounts:
+            - name: state
+              mountPath: /data
+            {{- if .Values.modules.enabled }}
+            - name: modules
+              mountPath: /app/modules
+              readOnly: true
+            {{- end }}
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: state
+          persistentVolumeClaim:
+            claimName: {{ include "lumi.fullname" . }}-state
+        {{- if .Values.modules.enabled }}
+        - name: modules
+          emptyDir: {}
+        {{- end }}
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

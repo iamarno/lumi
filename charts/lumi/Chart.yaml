@@ -1,0 +1,10 @@
+apiVersion: v2
+name: lumi
+description: A friendly, modular Matrix bot — core deployment with optional feature modules (lumi_modules) via init container
+type: application
+version: 0.1.0
+appVersion: "2.0.0"
+home: https://github.com/iamarno/lumi
+sources:
+  - https://github.com/iamarno/lumi
+  - https://github.com/iamarno/lumi_modules

@@ -1,0 +1,13 @@
+lumi {{ .Chart.AppVersion }} deployed as {{ include "lumi.fullname" . }}.
+
+Modules:        {{ if .Values.modules.enabled }}ENABLED ({{ include "lumi.modulesImage" . }}){{ else }}disabled (core-only bot){{ end }}
+Secret source:  {{ if .Values.existingSecret }}existing Secret "{{ .Values.existingSecret }}"{{ else if .Values.externalSecrets.enabled }}ExternalSecret from {{ .Values.externalSecrets.corePath }}{{ if .Values.modules.enabled }} + {{ .Values.externalSecrets.modulesPath }}{{ end }}{{ else if .Values.secretEnv }}inline plain Secret (dev/test only){{ else }}!!! NO SECRET CONFIGURED — the pod will not start. Set existingSecret, externalSecrets.enabled, or secretEnv.{{ end }}
+Metrics:        {{ if .Values.metrics.enabled }}port {{ .Values.metrics.port }}{{ else }}disabled{{ end }}
+Webhook:        {{ if .Values.webhook.enabled }}port {{ .Values.webhook.port }} (set GRAFANA_ALERTS_SECRET!){{ else }}disabled{{ end }}
+NetworkPolicy:  {{ if .Values.networkPolicy.enabled }}enabled{{ else }}DISABLED — inbound ports and egress are unrestricted{{ end }}
+
+Watch it come up:
+  kubectl logs -f deploy/{{ include "lumi.fullname" . }}
+
+Secret rotation requires a pod restart:
+  kubectl rollout restart deploy/{{ include "lumi.fullname" . }}

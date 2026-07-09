@@ -1,0 +1,118 @@
+# ── Core image ────────────────────────────────────────────────────────────────
+image:
+  repository: ghcr.io/iamarno/lumi
+  tag: "2.0.0"
+  # Pin by digest for production (takes precedence over tag):
+  # digest: "sha256:..."
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+#  - name: ghcr-pull
+
+# ── Optional feature modules (lumi_modules carrier image) ────────────────────
+# When enabled, an init container copies the compiled modules into a shared
+# volume mounted read-only at /app/modules; the core loads them via
+# LUMI_MODULES_DIR. Disabled = core-only bot.
+modules:
+  enabled: false
+  image: ghcr.io/iamarno/lumi_modules
+  tag: "1.0.0"
+  # Pin by digest for production (takes precedence over tag):
+  digest: ""
+
+# ── Secrets ───────────────────────────────────────────────────────────────────
+# All secret config (MATRIX_ACCESS_TOKEN, MATRIX_CRYPTO_PASSWORD, module
+# tokens, ...) is consumed via envFrom from ONE Kubernetes Secret.
+# Rotation requires a pod restart (envFrom values are fixed at pod start).
+#
+# Three ways to provide it (first match wins):
+#  1. existingSecret: name of a Secret you manage yourself
+#  2. externalSecrets.enabled: sync from Vault via External Secrets Operator
+#  3. secretEnv: inline values rendered into a plain Secret (dev/test only)
+existingSecret: ""
+
+externalSecrets:
+  enabled: false
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  # Vault KV path holding the CORE secrets (MATRIX_*, ...). All keys of the
+  # secret are synced 1:1 into the K8s Secret.
+  corePath: secret/lumi/core
+  # Vault KV path holding MODULE secrets (HASS_TOKEN, GRAFANA_TOKEN,
+  # GRAFANA_ALERTS_SECRET, ...). Only synced when modules.enabled=true, so a
+  # core-only deployment never mounts module tokens.
+  modulesPath: secret/lumi/modules
+
+# Inline secret values (rendered into a plain K8s Secret). Dev/test only —
+# prefer existingSecret or externalSecrets in production.
+secretEnv: {}
+#  MATRIX_HOMESERVER: https://matrix.example.org
+#  MATRIX_USER_ID: "@lumi:example.org"
+#  MATRIX_ACCESS_TOKEN: "..."
+
+# ── Non-secret environment ────────────────────────────────────────────────────
+env: {}
+#  LOG_LEVEL: info
+#  MATRIX_E2EE: "true"
+
+# ── Persistence (crypto store, module state) ─────────────────────────────────
+persistence:
+  size: 1Gi
+  # Use an encrypted-at-rest StorageClass in production. Empty = cluster default.
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+
+# ── Prometheus metrics ────────────────────────────────────────────────────────
+metrics:
+  enabled: false
+  port: 9091
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    # Extra labels for the ServiceMonitor (e.g. release: prometheus)
+    labels: {}
+
+# ── Grafana alerts webhook (module) ───────────────────────────────────────────
+# Exposes the grafana_alerts receiver port. Requires modules.enabled and
+# GRAFANA_ALERTS_ROOMS + GRAFANA_ALERTS_SECRET in the Secret.
+# GRAFANA_ALERTS_SECRET is effectively mandatory when this port is exposed.
+webhook:
+  enabled: false
+  port: 9093
+
+# ── NetworkPolicy ─────────────────────────────────────────────────────────────
+networkPolicy:
+  enabled: true
+  # Ingress peers allowed to scrape /metrics (NetworkPolicyPeer list)
+  metricsFrom:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: monitoring
+  # Ingress peers allowed to POST to the webhook (NetworkPolicyPeer list)
+  webhookFrom: []
+  #  - namespaceSelector:
+  #      matchLabels:
+  #        kubernetes.io/metadata.name: grafana
+  # Egress TCP ports (Matrix HTTPS, federation, plain HTTP for wttr.in etc.)
+  egressPorts: [443, 8448, 80]
+  # CIDRs excluded from egress. Vanilla NetworkPolicy cannot restrict egress
+  # by DNS name; this at least blocks the cloud metadata endpoint. Extend with
+  # RFC1918 blocks if your in-cluster upstreams allow it (FQDN egress needs a
+  # CNI extension such as CiliumNetworkPolicy).
+  egressDeny:
+    - 169.254.169.254/32
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

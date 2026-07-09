@@ -1,0 +1,38 @@
+services:
+
+  # ── Lumi (production image) ──────────────────────────────────────────────────
+  lumi:
+    image: ghcr.io/${GITHUB_REPOSITORY:-youruser/lumi}:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - lumi-data:/data
+    # No ports — lumi uses outbound connections only
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('fs').statSync('/data')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── Lumi (dev — mounts source, uses ts-node) ─────────────────────────────────
+  lumi-dev:
+    image: node:24-alpine
+    working_dir: /app
+    command: npx ts-node src/lumi.ts
+    env_file: .env
+    volumes:
+      - .:/app
+      - /app/node_modules          # keep container node_modules isolated
+      - lumi-data-dev:/data
+    environment:
+      LUMI_STATE_DIR: /data
+    profiles: [dev]                # only started with: docker compose --profile dev up
+
+volumes:
+  lumi-data:
+  lumi-data-dev:

@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Lumi runtime state
+lumi-state.json
+
+# TypeScript
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test / scan reports
+reports/
+grype-results.json
+sbom.spdx.json
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude Code
+.claude/

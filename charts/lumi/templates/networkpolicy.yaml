@@ -1,0 +1,54 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lumi.fullname" . }}
+  labels:
+    {{- include "lumi.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "lumi.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  # Default-deny ingress; each listener is opened only to its source.
+  ingress:
+    {{- if .Values.metrics.enabled }}
+    - from:
+        {{- toYaml .Values.networkPolicy.metricsFrom | nindent 8 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.metrics.port }}
+    {{- end }}
+    {{- if and .Values.webhook.enabled .Values.networkPolicy.webhookFrom }}
+    - from:
+        {{- toYaml .Values.networkPolicy.webhookFrom | nindent 8 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.webhook.port }}
+    {{- end }}
+  egress:
+    # DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Outbound HTTPS/HTTP (Matrix homeserver, module upstreams). Vanilla
+    # NetworkPolicy cannot match DNS names; we allow the egress ports broadly
+    # but always exclude the cloud metadata endpoint (and any extra CIDRs in
+    # egressDeny). Use a CNI FQDN policy (e.g. Cilium) for tighter rules.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              {{- toYaml .Values.networkPolicy.egressDeny | nindent 14 }}
+      ports:
+        {{- range .Values.networkPolicy.egressPorts }}
+        - protocol: TCP
+          port: {{ . }}
+        {{- end }}
+{{- end }}
