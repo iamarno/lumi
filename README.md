@@ -45,7 +45,7 @@ docker run -v lumi-data:/data --env-file .env lumi
 
 ### Podman
 
-Podman is a daemonless, rootless alternative to Docker and works as a drop-in replacement.
+[Podman](https://podman.io/) runs the same OCI images without a background daemon and, by default, as an unprivileged user — a good fit for self-hosting Lumi, since a container breakout lands as your user rather than root. The commands mirror Docker's (alias `docker=podman` if you like), and `podman generate systemd` turns the container into a user service that starts on login (see below).
 
 ```bash
 podman build -t lumi .
