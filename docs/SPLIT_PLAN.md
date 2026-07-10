@@ -416,11 +416,17 @@ network. Putting modules in a separate repo/image does **not** isolate them. Con
   its Secret; `cosign verify` succeeds for both images and the admission policy rejects an
   unsigned carrier image.
 
+## Done as a follow-up (before making the repos public)
+- **SSRF hardening** in the `http` module — private / loopback / link-local / `169.254.169.254`
+  targets are blocked, enforced at connection time (covers DNS rebinding + redirects to internal
+  hosts). Non-http(s) schemes rejected. (lumi_modules `src/http.ts`)
+- **Mandatory webhook HMAC** — the grafana_alerts listener refuses to start without
+  `GRAFANA_ALERTS_SECRET`; there is no unauthenticated mode.
+- Genericized personal examples in the module docs; added MIT `LICENSE` to both repos.
+
 ## Deferred (not in this pass)
 - Slim `BotConfig`/`loadConfig` to core-only fields; move feature env reads into each module via
   exported `env()/envList()/envBool()`, so core never references a module's config.
 - Optional: bundle each module with esbuild (externals `lumi`, `matrix-js-sdk`) to eliminate the
   carried `node_modules` entirely — revisit if module-only deps proliferate.
-- **SSRF hardening** in the `http` module: block RFC1918 / link-local / `169.254.169.254` /
-  loopback in `isAllowed()` (http.ts:55), in addition to the allowlist.
 - Per-command authorization / admin-user check (pre-existing CISO gap, unaffected by the split).

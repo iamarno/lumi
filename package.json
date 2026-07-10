@@ -2,6 +2,7 @@
   "name": "lumi",
   "version": "2.0.0",
   "description": "Lumi — a friendly, modular Matrix bot in TypeScript",
+  "license": "MIT",
   "main": "dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
