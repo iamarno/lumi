@@ -35,7 +35,9 @@ spec:
         - name: modules
           image: {{ include "lumi.modulesImage" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["sh", "-c", "cp -a /modules/. /shared/"]
+          # -r (not -a): the nonroot init user owns the copies; preserving the
+          # image's root ownership/perms would fail on a read-only-root, nonroot pod.
+          command: ["sh", "-c", "cp -r /modules/. /shared/"]
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
