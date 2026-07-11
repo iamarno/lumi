@@ -122,36 +122,6 @@ Element requires interactive SAS (emoji) verification to mark a device as verifi
 
 Pending verifications expire automatically after 5 minutes. If `LUMI_ADMIN_ROOM` is not set, lumi still accepts and waits — the transaction ID is logged but no Matrix message is sent.
 
-### 🏷️ Image from GHCR
-
-After the CI pipeline runs, images are available at:
-
-```
-ghcr.io/iamarno/lumi:latest      # latest main build
-ghcr.io/iamarno/lumi:2.0.0       # tagged release
-ghcr.io/iamarno/lumi:sha-abc1234 # specific commit
-```
-
-Images are built for **linux/amd64** and **linux/arm64** (Raspberry Pi / Apple Silicon).
-
-#### Authenticating to GHCR (private repository)
-
-Create a GitHub Personal Access Token (PAT) with the `read:packages` scope at
-**GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)**.
-
-```bash
-# Docker
-echo YOUR_PAT | docker login ghcr.io -u iamarno --password-stdin
-
-# Podman
-echo YOUR_PAT | podman login ghcr.io -u iamarno --password-stdin
-```
-
-Credentials are stored in `~/.docker/config.json` and persist across restarts.
-`docker compose up -d` / `podman compose up -d` will use them automatically.
-
----
-
 ## ⚙️ CI/CD (GitHub Actions)
 
 Two workflows ship in `.github/workflows/`:
