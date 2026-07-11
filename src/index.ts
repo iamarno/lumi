@@ -20,6 +20,6 @@ export {
   type StartHook,
   type ModuleInfo,
 } from "./registry";
-export { type BotConfig, env, envInt, envList, envBool } from "./config";
+export { type BotConfig, env, envInt, envList, envBool, isAdmin } from "./config";
 export { logger, type ModuleLogger, type LogLevel } from "./logger";
 export { ModuleStore } from "./storage";

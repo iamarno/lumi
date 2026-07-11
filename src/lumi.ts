@@ -15,7 +15,7 @@ import {
   AuthType,
   MatrixError,
 } from "matrix-js-sdk";
-import { loadConfig, BotConfig, envList } from "./config";
+import { loadConfig, BotConfig, envList, isAdmin } from "./config";
 import { ModuleRegistry, ModuleInfo, loadModules, errMsg, renderHtml } from "./registry";
 import { loadCryptoStore, saveCryptoStore } from "./crypto-store";
 import {
@@ -105,8 +105,14 @@ async function handleMessage(
   const roomId = room!.roomId;
   const sender = event.getSender()!;
 
-  // ACL: silently ignore messages from non-allowlisted senders / rooms
-  if (config.allowedUsers?.length && !config.allowedUsers.includes(sender)) {
+  // ACL: silently ignore messages from non-allowlisted senders / rooms.
+  // Admins always pass the user allowlist (never lock an admin out); the room
+  // allowlist still applies to everyone.
+  if (
+    config.allowedUsers?.length &&
+    !config.allowedUsers.includes(sender) &&
+    !isAdmin(sender, config)
+  ) {
     log.debug(`ACL: ignoring message from ${sender} in ${roomId}`);
     return;
   }
@@ -123,6 +129,11 @@ async function handleMessage(
   if (!body.startsWith(PREFIX)) {
     const replyDef = registry.matchReply(roomId, body);
     if (!replyDef) return;
+    // Admin-only reply handlers: silently ignore non-admins (like the ACL)
+    if (replyDef.admin && !isAdmin(sender, config)) {
+      log.debug(`admin: ignoring reply handler ${replyDef.name} from non-admin ${sender}`);
+      return;
+    }
     try {
       const reply = await replyDef.handler({ client, roomId, event, args: body.split(/\s+/) });
       if (reply === null) return;
@@ -149,6 +160,9 @@ async function handleMessage(
   if (!def) {
     unknownCommands.inc();
     reply = `❓ Unknown command \`!${commandName}\`. Try \`!help\`.`;
+  } else if (def.admin && !isAdmin(sender, config)) {
+    commandsReceived.inc({ command: commandName });
+    reply = "⛔ This command requires admin privileges.";
   } else {
     commandsReceived.inc({ command: commandName });
     try {
