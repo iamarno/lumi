@@ -48,6 +48,13 @@ describe('ModuleRegistry', () => {
     expect(registry.get('nope')).toBeUndefined();
   });
 
+  test('admin flag round-trips on a command', () => {
+    registry.register({ name: 'secret', help: '', admin: true, handler: async () => '' });
+    expect(registry.get('secret')?.admin).toBe(true);
+    registry.register({ name: 'open', help: '', handler: async () => '' });
+    expect(registry.get('open')?.admin).toBeUndefined();
+  });
+
   test('moduleHelp overview contains command name', () => {
     registry.register({ name: 'bar', help: 'Bar help', handler: async () => '' });
     const text = registry.moduleHelp();

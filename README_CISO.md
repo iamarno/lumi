@@ -14,6 +14,8 @@
 
 **Verification requires human confirmation.** The SAS flow posts emojis to the admin room and waits for explicit `!lumi verify confirm`. A rogue verification request can't auto-complete.
 
+**Per-command authorization exists.** Privileged commands — `!lumi reload`, `!lumi verify confirm/cancel`, and runtime log-level changes — require an **admin** (`LUMI_ADMIN_USERS`, falling back to the `LUMI_ALLOWED_USERS` allowlist). The policy is fail-closed: a fully open bot (no admins, no allowlist) refuses all privileged commands. This closes the previous "any allowlisted user can run any command" gap and adds a per-user check on SAS confirmation (no longer just "anyone in the admin room"). Admins are matched by exact MXID and are fixed at startup (changing them needs a restart).
+
 ---
 
 ## Module trust boundary
@@ -30,10 +32,6 @@ Deployment security checklist (Helm chart): NetworkPolicy enabled, images pinned
 
 ## What's not safe / current flaws
 
-**No per-command authorization.** `LUMI_ALLOWED_USERS` and `LUMI_ALLOWED_ROOMS` restrict who lumi talks to, but there is no role system — any allowlisted user can run any command, including `!lumi reload` if `LUMI_ALLOW_ENV_RELOAD=true`.
-
-**The admin room is a single point of trust.** The verification confirmation is only as secure as whoever can send `!lumi verify confirm` in the admin room. If that room is compromised or another bot is in it, an attacker could confirm a rogue verification. There's no per-user ACL on the confirm command.
-
 **`globalBlacklistUnverifiedDevices = false`.** Lumi sends encrypted messages to unverified devices. This is intentional (otherwise lumi couldn't communicate with anyone until they're verified), but it means lumi doesn't enforce a verified-device policy for recipients. An attacker who adds an unverified device to a user's account will receive lumi's messages.
 
 **`MATRIX_CRYPTO_PASSWORD` in plaintext env.** The passphrase that protects both the on-disk store and the SSSS key lives in `.env` / environment variables. On a compromised host, an attacker can read it, derive the SSSS key, and extract all cross-signing private keys from the server. This is a systemic limitation of secret management via env vars — not unique to lumi.
@@ -45,12 +43,6 @@ Deployment security checklist (Helm chart): NetworkPolicy enabled, images pinned
 ---
 
 ## What to improve
-
-**Per-command authorization.** Basic user/room allowlisting is implemented via `LUMI_ALLOWED_USERS` / `LUMI_ALLOWED_ROOMS`, but there is no role system. High-risk commands (`!lumi reload`, `!lumi verify confirm`) should only be executable by a designated admin user ID.
-
-**Per-command authorization.** Some commands (`!lumi reload`, `!lumi verify confirm`) are higher-risk than others. A simple role system — e.g. only the room admin or a configured admin user ID can run privileged commands — would reduce blast radius significantly.
-
-**Admin room sender check.** `!lumi verify confirm` should only be accepted from a configured `LUMI_ADMIN_USER` Matrix ID, not from any participant in the admin room.
 
 **Verification rate limiting.** Reject or ignore verification requests from the same user more than N times per hour.
 
@@ -76,8 +68,8 @@ Practically: "harvest now, decrypt later" attacks are the realistic PQC threat. 
 
 | Risk | Severity | Mitigated? |
 |---|---|---|
-| Unauthenticated command access | High | Partial — allowlist via `LUMI_ALLOWED_USERS` / `LUMI_ALLOWED_ROOMS` |
-| Admin room takeover → rogue verify | Medium | Partial — human confirm required |
+| Unauthenticated command access | High | Yes — allowlist (`LUMI_ALLOWED_*`) + admin role (`LUMI_ADMIN_USERS`) on privileged commands, fail-closed |
+| Admin room takeover → rogue verify | Medium | Yes — SAS confirm requires an admin user (not just admin-room membership) + human confirm |
 | Env var secret exposure on compromised host | High | No — systemic |
 | Unverified device recipients | Medium | By design, documented |
 | Verification spam / DoS | Low | No |

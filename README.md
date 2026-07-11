@@ -122,6 +122,8 @@ Element requires interactive SAS (emoji) verification to mark a device as verifi
 
 Pending verifications expire automatically after 5 minutes. If `LUMI_ADMIN_ROOM` is not set, lumi still accepts and waits — the transaction ID is logged but no Matrix message is sent.
 
+> **Admin required.** `!lumi verify confirm/cancel` is a privileged command. Set `LUMI_ADMIN_USERS` (or a `LUMI_ALLOWED_USERS` allowlist, whose members are admins by default) to whoever confirms verifications. On a fully open bot with neither set, confirmation is **refused** (fail-closed) — so if you use E2EE, configure an admin.
+
 ## ⚙️ CI/CD (GitHub Actions)
 
 Two workflows ship in `.github/workflows/`:
@@ -179,7 +181,8 @@ Core framework variables. Feature-module variables (`GRAFANA_*`, `HASS_*`, `SENT
 | `LUMI_ADMIN_ROOM` | Room ID for admin notifications (e.g. SAS verification prompts). Lumi must be a member. | _(blank = log only)_ |
 | `LUMI_ALLOWED_USERS` | Comma-separated Matrix user IDs that lumi will respond to. When set, messages from any other user are silently ignored. | _(blank = allow all)_ |
 | `LUMI_ALLOWED_ROOMS` | Comma-separated room IDs that lumi will respond in and join. When set, invites from other rooms are declined and messages in other rooms are ignored. | _(blank = allow all)_ |
-| `LUMI_ALLOW_ENV_RELOAD` | Enable the `!lumi reload` command (disabled by default for safety) | `false` |
+| `LUMI_ADMIN_USERS` | Comma-separated Matrix IDs allowed to run **privileged** commands (`!lumi reload`, `!lumi verify confirm/cancel`, `!lumi log <level>`). Unset ⇒ allowlisted users are admins; if there's no allowlist either, privileged commands are **disabled** (fail closed). Admins always bypass `LUMI_ALLOWED_USERS`. | _(see description)_ |
+| `LUMI_ALLOW_ENV_RELOAD` | Enable the `!lumi reload` command (disabled by default for safety; also requires admin) | `false` |
 | `METRICS_PORT` | Port for the Prometheus `/metrics` endpoint | _(blank = disabled)_ |
 | `LOG_LEVEL` | Log verbosity | `info` |
 
@@ -205,15 +208,15 @@ Feature-module commands are documented in the [`lumi_modules`](https://github.co
 |---|---|
 | `!lumi` | Status overview: uptime, Node version, memory, rooms, module/command/task counts, full E2EE + cross-signing status |
 | `!lumi verify` | Show device ID, Ed25519 fingerprint, and cross-signing status |
-| `!lumi verify confirm <txnId>` | Confirm a pending SAS verification (emojis match) |
-| `!lumi verify cancel <txnId>` | Cancel a pending SAS verification |
+| `!lumi verify confirm <txnId>` | _(admin)_ Confirm a pending SAS verification (emojis match) |
+| `!lumi verify cancel <txnId>` | _(admin)_ Cancel a pending SAS verification |
 | `!lumi modules` | List loaded module files and what each registered |
 | `!lumi tasks` | List all scheduled tasks with their intervals and room counts |
 | `!lumi log` | Show current log levels and known module names |
-| `!lumi log <level>` | Set global log level (`debug`, `info`, `warn`, `error`, `off`) |
-| `!lumi log <module> <level>` | Override log level for a specific module |
-| `!lumi log <module> reset` | Clear per-module override, revert to global level |
-| `!lumi reload` | Re-read `.env` and update `process.env` (requires `LUMI_ALLOW_ENV_RELOAD=true`; inert in Kubernetes where config comes from the environment, not a `.env` file) |
+| `!lumi log <level>` | _(admin)_ Set global log level (`debug`, `info`, `warn`, `error`, `off`) |
+| `!lumi log <module> <level>` | _(admin)_ Override log level for a specific module |
+| `!lumi log <module> reset` | _(admin)_ Clear per-module override, revert to global level |
+| `!lumi reload` | _(admin)_ Re-read `.env` and update `process.env` (requires `LUMI_ALLOW_ENV_RELOAD=true`; inert in Kubernetes where config comes from the environment, not a `.env` file) |
 
 ### 🖥️ System
 | Command | Description |
@@ -255,6 +258,7 @@ import { logger, ModuleStore } from "lumi";
 | `BotModule`, `CommandDef`, `CommandContext`, `ScheduledTaskDef`, `ReplyHandlerDef`, `StartHook`, `ModuleInfo` | The module contract types |
 | `BotConfig` | Parsed bot configuration passed to `register()` |
 | `env`, `envInt`, `envList`, `envBool` | `.env` / environment helpers |
+| `isAdmin(sender, config)` | Whether a Matrix user may run privileged commands. Set `admin: true` on a `CommandDef`/`ReplyHandlerDef` and the dispatcher enforces it, or call `isAdmin` directly. |
 | `logger` | Per-module leveled logger (`logger.getLogger("mymodule")`) |
 | `ModuleStore` | Per-module persistent JSON storage under `$LUMI_STATE_DIR` |
 | `renderHtml`, `errMsg` | Markdown-ish → Matrix HTML, error formatting |

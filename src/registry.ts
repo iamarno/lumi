@@ -27,6 +27,8 @@ export interface CommandDef {
   usage?: string;
   /** Module group this command belongs to (used by !help for grouping) */
   module?: string;
+  /** Restrict to admin users (LUMI_ADMIN_USERS); enforced by the dispatcher */
+  admin?: boolean;
 }
 
 export interface BotModule {
@@ -54,6 +56,8 @@ export interface ReplyHandlerDef {
   /** Return true if this handler wants to claim the message */
   match: (roomId: string, body: string) => boolean;
   handler: CommandHandler;
+  /** Restrict to admin users (LUMI_ADMIN_USERS); enforced by the dispatcher */
+  admin?: boolean;
 }
 
 export type StartHook = (client: MatrixClient) => Promise<void>;

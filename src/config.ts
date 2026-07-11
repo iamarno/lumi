@@ -50,6 +50,7 @@ export interface BotConfig {
   // ACL
   allowedUsers?: string[];  // LUMI_ALLOWED_USERS (empty/absent = allow all)
   allowedRooms?: string[];  // LUMI_ALLOWED_ROOMS (empty/absent = allow all)
+  adminUsers: string[];     // LUMI_ADMIN_USERS (privileged commands; empty = fall back to allowedUsers, else nobody)
   // HTTP fetch
   httpAllowedDomains: string[]; // empty = allow all
   // Weather (wttr.in — no key needed)
@@ -107,9 +108,32 @@ export function loadConfig(): BotConfig {
     grafanaToken: env("GRAFANA_TOKEN", ""),
     allowedUsers: envList("LUMI_ALLOWED_USERS"),
     allowedRooms: envList("LUMI_ALLOWED_ROOMS"),
+    adminUsers: envList("LUMI_ADMIN_USERS"),
     httpAllowedDomains: envList("HTTP_ALLOWED_DOMAINS"),
     weatherEnabled: envBool("WEATHER_ENABLED", true),
     adminRoom: env("LUMI_ADMIN_ROOM", ""),
     logLevel: env("LOG_LEVEL", "info"),
   };
+}
+
+/**
+ * Whether a Matrix user may run privileged (admin) commands.
+ *
+ * Graduated, fail-closed policy:
+ *   1. LUMI_ADMIN_USERS set → the sender must be listed there;
+ *   2. else LUMI_ALLOWED_USERS set → the allowlisted users are admins;
+ *   3. else (fully open bot) → nobody is an admin.
+ *
+ * MXIDs are matched exactly (a homeserver can only assert sender IDs in its own
+ * domain, so this is not spoofable across servers). A falsy sender is denied.
+ */
+export function isAdmin(
+  sender: string | null | undefined,
+  config: BotConfig
+): boolean {
+  if (!sender) return false;
+  const admins = config.adminUsers.length
+    ? config.adminUsers
+    : config.allowedUsers ?? [];
+  return admins.length > 0 && admins.includes(sender);
 }

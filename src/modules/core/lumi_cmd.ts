@@ -10,8 +10,10 @@
 
 import { ModuleRegistry, ModuleInfo } from "../../registry";
 import { logger, LogLevel } from "../../logger";
-import { reloadEnv, envBool, BotConfig } from "../../config";
+import { reloadEnv, envBool, BotConfig, isAdmin } from "../../config";
 import type { PendingSas } from "../../lumi";
+
+const ADMIN_ONLY = "⛔ This command requires admin privileges.";
 
 function formatBytes(bytes: number): string {
   if (bytes >= 1073741824) return `${(bytes / 1073741824).toFixed(1)}GB`;
@@ -56,6 +58,7 @@ export function registerLumiCmd(
       const VALID: LogLevel[] = ["debug", "info", "warn", "error", "off"];
 
       if (sub === "verify" && (ctx.args[1] === "confirm" || ctx.args[1] === "cancel")) {
+        if (!isAdmin(ctx.event.getSender(), config)) return ADMIN_ONLY;
         const action = ctx.args[1];
         const txnId = ctx.args[2];
         if (!txnId) return `Usage: \`!lumi verify ${action} <txnId>\``;
@@ -103,6 +106,7 @@ export function registerLumiCmd(
       }
 
       if (sub === "reload") {
+        if (!isAdmin(ctx.event.getSender(), config)) return ADMIN_ONLY;
         if (!envBool("LUMI_ALLOW_ENV_RELOAD")) {
           return "Env reload is disabled. Set `LUMI_ALLOW_ENV_RELOAD=true` in .env to enable it.";
         }
@@ -127,6 +131,9 @@ export function registerLumiCmd(
           lines.push(`Valid levels: ${VALID.join(", ")}`);
           return lines.join("\n");
         }
+
+        // Changing levels (any arg past "log") is an admin-only mutation
+        if (!isAdmin(ctx.event.getSender(), config)) return ADMIN_ONLY;
 
         // !lumi log <level>  — set global
         if (
@@ -223,11 +230,17 @@ export function registerLumiCmd(
         if (deviceId) e2eeLines.push(`• Device: \`${deviceId}\``);
       }
 
-      const aclActive = !!(config.allowedUsers?.length || config.allowedRooms?.length);
+      const aclActive = !!(config.allowedUsers?.length || config.allowedRooms?.length || config.adminUsers.length);
       const aclLines: string[] = [];
       if (aclActive) {
         aclLines.push(`• Allowed users: ${config.allowedUsers?.length ? config.allowedUsers.join(", ") : "all"}`);
         aclLines.push(`• Allowed rooms: ${config.allowedRooms?.length ? config.allowedRooms.join(", ") : "all"}`);
+        const admins = config.adminUsers.length
+          ? config.adminUsers.join(", ")
+          : config.allowedUsers?.length
+          ? "allowlisted users"
+          : "none (privileged commands disabled)";
+        aclLines.push(`• Admins: ${admins}`);
       }
 
       return [
