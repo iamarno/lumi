@@ -39,27 +39,18 @@ export interface BotConfig {
   password?: string;          // MATRIX_PASSWORD (optional: used for cross-signing UIA)
   cryptoPassword: string;     // MATRIX_CRYPTO_PASSWORD (default: "")
   cryptoSaveInterval: number; // MATRIX_CRYPTO_SAVE_INTERVAL in seconds (default: 60)
-  // Prometheus
-  prometheusUrl: string;
-  // Home Assistant
-  hassUrl: string;
-  hassToken: string;
-  // Grafana
-  grafanaUrl: string;
-  grafanaToken: string;
   // ACL
   allowedUsers?: string[];  // LUMI_ALLOWED_USERS (empty/absent = allow all)
   allowedRooms?: string[];  // LUMI_ALLOWED_ROOMS (empty/absent = allow all)
   adminUsers: string[];     // LUMI_ADMIN_USERS (privileged commands; empty = fall back to allowedUsers, else nobody)
-  // HTTP fetch
-  httpAllowedDomains: string[]; // empty = allow all
-  // Weather (wttr.in — no key needed)
-  weatherEnabled: boolean;
   // Admin
   adminRoom?: string; // LUMI_ADMIN_ROOM (optional: room ID for admin notifications, blank = log only)
   // Logging
   logLevel: string;
 }
+// Feature-specific config (Grafana, Home Assistant, Prometheus, HTTP, weather, …)
+// lives in the feature modules themselves (lumi_modules), which read their own
+// env vars via env()/envList()/envBool(). Core stays feature-agnostic.
 
 export function reloadEnv(): { changed: string[]; added: string[] } {
   if (!fs.existsSync(envPath)) return { changed: [], added: [] };
@@ -101,16 +92,9 @@ export function loadConfig(): BotConfig {
     password: env("MATRIX_PASSWORD", ""),
     cryptoPassword: env("MATRIX_CRYPTO_PASSWORD", ""),
     cryptoSaveInterval: envInt("MATRIX_CRYPTO_SAVE_INTERVAL", 60),
-    prometheusUrl: env("PROMETHEUS_URL", "http://localhost:9090"),
-    hassUrl: env("HASS_URL", "http://homeassistant.local:8123"),
-    hassToken: env("HASS_TOKEN", ""),
-    grafanaUrl: env("GRAFANA_URL", ""),
-    grafanaToken: env("GRAFANA_TOKEN", ""),
     allowedUsers: envList("LUMI_ALLOWED_USERS"),
     allowedRooms: envList("LUMI_ALLOWED_ROOMS"),
     adminUsers: envList("LUMI_ADMIN_USERS"),
-    httpAllowedDomains: envList("HTTP_ALLOWED_DOMAINS"),
-    weatherEnabled: envBool("WEATHER_ENABLED", true),
     adminRoom: env("LUMI_ADMIN_ROOM", ""),
     logLevel: env("LOG_LEVEL", "info"),
   };
