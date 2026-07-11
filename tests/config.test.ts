@@ -6,9 +6,7 @@ function cfg(over: Partial<BotConfig> = {}): BotConfig {
   return {
     homeserver: '', userId: '', accessToken: '',
     e2eeEnabled: false, deviceId: '', cryptoPassword: '', cryptoSaveInterval: 60,
-    prometheusUrl: '', hassUrl: '', hassToken: '', grafanaUrl: '', grafanaToken: '',
-    httpAllowedDomains: [], weatherEnabled: false, logLevel: 'info',
-    adminUsers: [], ...over,
+    logLevel: 'info', adminUsers: [], ...over,
   };
 }
 
